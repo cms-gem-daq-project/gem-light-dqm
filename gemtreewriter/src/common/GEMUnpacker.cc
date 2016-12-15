@@ -107,8 +107,12 @@ class GEMUnpacker
               VFATdata * m_vfatdata = new VFATdata();
               // read 3 vfat block words, totaly 192 bits
               std::fread(&m_word, sizeof(uint64_t), 1, m_file);
-        //printf("VFAT WORD 1\n");
-        //printf("%016llX\n", m_word);
+	//printf("GEB(%d) VFAT(%02d) WORD 1:",j,k);
+        //printf("%016llX", m_word);
+        //printf(" BC %04x",       (m_word>>48)&0x0fff);
+        //printf(" EC %04x",       (m_word>>36)&0x00ff);
+        //printf(" Flags %04x",    (m_word>>32)&0x000f);
+        //printf(" chipID %04x\n", (m_word>>16)&0x0fff);
               m_vfatdata->read_fw(m_word);
               std::fread(&m_word, sizeof(uint64_t), 1, m_file);
         //printf("VFAT WORD 2\n");

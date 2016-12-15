@@ -47,7 +47,7 @@ class Hardware_histogram
       convertor << val;
       int channel;
       convertor >> std::dec >> channel;
-      t_strip_map[channel] = strip;
+      t_strip_map[channel-1] = strip;
     }
     icsvfile_.close();
   }

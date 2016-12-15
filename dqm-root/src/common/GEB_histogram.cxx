@@ -17,7 +17,7 @@ public:
   GEB_histogram(const std::string & filename, TDirectory * dir, const std::string & hwid):Hardware_histogram(filename, dir, hwid){}//call base constructor
   ~GEB_histogram()
   {
-      delete[] m_vfatsH;
+      if (m_vfatsH) {delete[] m_vfatsH; m_vfatsH = NULL;}
   }
 
   TCanvas * newCanvas(TString title="", Int_t xdiv=1, Int_t ydiv =1,
@@ -36,18 +36,28 @@ public:
 
   //!Books histograms for GEB data
   /*!
-    Books histograms for the following data: Zero Suppresion flags, GLIB input ID, VFAT word count (header), 
+    Books histograms for the following data: Zero Suppresion flags, GLIB input ID, VFAT word count (header),
     Errors and Warnings (Thirteen Flags, InFIFO underflow flag, Stuck data flag), OH CRC, VFAT word count (trailer)
   */
   void bookHistograms()
   {
+    if (DEBUG) std::cout << "GEB_histogram::bookHistograms booking VFAT histograms" << std::endl;
     m_vfatsH = new VFAT_histogram*[24];
+    if (DEBUG) std::cout << "GEB_histogram::bookHistograms m_vfatsH "
+			 << std::hex << m_vfatsH << std::dec << std::endl;
     for (unsigned int i = 0; i<24; i++){
-        m_vfatsH[i] = 0;
+        if (DEBUG) std::cout << "GEB_histogram::bookHistograms not existing m_vfatsH[" << i << "] "
+			     << std::hex << m_vfatsH[i] << std::dec << std::endl;
+        // m_vfatsH[i] = new VFAT_histogram("dummy", m_dir, "dummy");
+	// if (DEBUG) std::cout << "GEB_histogram::bookHistograms constructed as dummy for some reason m_vfatsH[" << i << "] "
+	// 		     << std::hex << m_vfatsH[i] << std::dec << std::endl;
+        m_vfatsH[i] = NULL;
+	if (DEBUG) std::cout << "GEB_histogram::bookHistograms nullified for some reason m_vfatsH[" << i << "] "
+			     << std::hex << m_vfatsH[i] << std::dec << std::endl;
     }
     m_dir->cd();
     //ZeroSup  = new TH1F("ZeroSup", "Zero Suppression", 0xffffff,  0x0 , 0xffffff);
-    InputID  = new TH1F("InputID", "GLIB input ID", 31,  0x0 , 0b11111);      
+    InputID  = new TH1F("InputID", "GLIB input ID", 31,  0x0 , 0b11111);
     Vwh      = new TH1F("Vwh", "VFAT word count", 4095,  0x0 , 0xfff);
     // Assing custom bin labels
     const char *error_flags[5] = {"Event Size Overflow", "L1AFIFO Full", "InFIFO Full", "Evt FIFO Full","InFIFO Underflow"};
@@ -76,7 +86,7 @@ public:
 
   //!Fills histograms for GEB data
   /*!
-    Fills the histograms for the following data: Zero Suppresion flags, GLIB input ID, VFAT word count (header), 
+    Fills the histograms for the following data: Zero Suppresion flags, GLIB input ID, VFAT word count (header),
     Errors and Warnings (Thirteen Flags, InFIFO underflow flag, Stuck data flag), OH CRC, VFAT word count (trailer)
   */
 
@@ -110,6 +120,12 @@ public:
         m_sn = slot_map.find(m_vfat->ChipID())->second;
 
         SlotN->Fill(m_sn);
+	if (m_sn < 0) {
+	  std::cout << "Invalid slot(" << m_sn << ") found for VFAT with chipID 0x"
+		    << std::hex << m_vfat->ChipID() << std::dec << std::endl;
+	  continue;
+	}
+
         ofstream myfile;
         m_strip_map = vfatsH(m_sn)->getMap();
         uint16_t chan0xf = 0;
@@ -154,10 +170,10 @@ public:
       ncl+=cls.size();
       ncleta+=cls.size();
       for (GEMClusterContainer::iterator icl=cls.begin();icl!=cls.end();icl++){
-        ClusterSize->Fill(icl->clusterSize());    
-        ClusterSizeEta[NETA-1-ieta->first]->Fill(icl->clusterSize());   
+        ClusterSize->Fill(icl->clusterSize());
+        ClusterSizeEta[NETA-1-ieta->first]->Fill(icl->clusterSize());
       }
-      ClusterMultEta[NETA-1-ieta->first]->Fill(ncleta);   
+      ClusterMultEta[NETA-1-ieta->first]->Fill(ncleta);
     }
     ClusterMult->Fill(ncl);
   }
@@ -179,13 +195,27 @@ public:
         }
       }
   }
-  
+
   //!Adds a VFAT_histogram object to the m_vfatH vector
-  void addVFATH(VFAT_histogram* vfatH, int i){m_vfatsH[i]=vfatH;}
+  //void addVFATH(VFAT_histogram* vfatH, int i){if ((i>0) && (i<24)) {m_vfatsH[i]=vfatH;} else std::cout<<"Wrong slot! Slot is " << i << std::endl; }
+  void addVFATH(VFAT_histogram* vfatH, int i){
+    std::cout << "adding vfatH " << std::hex << vfatH << std::dec
+	      << " to position " << i;
+    std::cout << std::endl;
+    std::cout << " before m_vfatsH "              << std::hex << m_vfatsH    << std::dec;
+    std::cout << " before vfatsH("   << i << ") " << std::hex << vfatsH(i)   << std::dec;
+    std::cout << " before m_vfatsH[" << i << "] " << std::hex << m_vfatsH[i] << std::dec;
+    std::cout << std::endl;
+    m_vfatsH[i]=vfatH;
+    std::cout << " after m_vfatsH "              << std::hex << m_vfatsH    << std::dec;
+    std::cout << " after vfatsH("   << i << ") " << std::hex << vfatsH(i)   << std::dec;
+    std::cout << " after m_vfatsH[" << i << "] " << std::hex << m_vfatsH[i] << std::dec;
+    std::cout << std::endl;
+  }
   //!Returns the m_vfatsH vector
   VFAT_histogram * vfatsH(int i){return m_vfatsH[i];}
 private:
-  VFAT_histogram **m_vfatsH;    ///<A vector of VFAT_histogram 
+  VFAT_histogram **m_vfatsH;    ///<A vector of VFAT_histogram
   //TH1F* ZeroSup;                           ///<Histogram for Zero Suppression flags
   TH1F* InputID;                           ///<Histogram for GLIB input ID
   TH1F* Vwh;                               ///<Histogram for VFAT word count (header)
@@ -204,7 +234,7 @@ private:
   TH1F* Totalb1110;
   TH1F* TotalFlag;
   TH1F* TotalCRC;
-  
+
   std::map<int, GEMStripCollection> allstrips;
   VFATdata * m_vfat;
   std::vector<VFATdata> v_vfat;            ///Vector of VFATdata

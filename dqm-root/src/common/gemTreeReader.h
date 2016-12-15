@@ -2,7 +2,7 @@
 #define gemTreeReader_h
 
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif
 #include <TChain.h>
 #include <TProofOutputFile.h>

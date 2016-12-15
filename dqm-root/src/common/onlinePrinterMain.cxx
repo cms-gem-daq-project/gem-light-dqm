@@ -2,7 +2,7 @@
    only printing summary canvases and a select few others */
 
 
-#define DEBUG 0
+#define DEBUG 1
 #include <iomanip> 
 #include <iostream>
 #include <fstream>
