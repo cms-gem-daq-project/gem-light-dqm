@@ -237,14 +237,6 @@ public:
     if (DEBUG) cout << "printPath: " << printPath << endl;
     gROOT->ProcessLine(".!mkdir -p "+printPath);
 
-          
-    gtprintCanvas(Integrity_canvas, printPath+"integrity");
-    gtprintCanvas(Occupancy_canvas, printPath+"occupancy"); 
-    gtprintCanvas(ClusterSize_canvas, printPath+"clusterSize");
-    gtprintCanvas(ClusterMult_canvas, printPath+"clusterMult");
-          
-
-
     gROOT->SetBatch(kTRUE);
     fillGEBIntegrityCanvas();
     fillGEBOccupancyCanvas();
@@ -255,5 +247,9 @@ public:
     // ClusterSize_canvas->Write();
     // ClusterMult_canvas->Write();
 
+    gtprintCanvas(Integrity_canvas, printPath+"integrity");
+    gtprintCanvas(Occupancy_canvas, printPath+"occupancy"); 
+    gtprintCanvas(ClusterSize_canvas, printPath+"clusterSize");
+    gtprintCanvas(ClusterMult_canvas, printPath+"clusterMult");
   }
 };

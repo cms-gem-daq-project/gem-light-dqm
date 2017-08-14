@@ -23,6 +23,9 @@ TList *getConfig(string filename)
   else {
     RunName = filename.substr(filename.find("run"),filename.find("_chunk")-filename.find("run"));
   }
+  // only care about the run number
+  RunName = filename.substr(filename.find("run"),9);
+
   TList * config = new TList();
   TList * amc = new TList();
   TMap * geb = new TMap();
@@ -31,13 +34,14 @@ TList *getConfig(string filename)
   config->SetName("config");
   string AMC13Query = "select id from ldqm_db_run where Name like '";
   AMC13Query += RunName;
-  AMC13Query += "'";
+  AMC13Query += "%'";
 
   string RunIDstr = stringFromChar(simpleDBQuery(Database, AMC13Query));
   
   string AMCQuery = "select amc_id from ldqm_db_run_amcs where run_id like '"+RunIDstr+"'";
+  std::cout << "Exceuting query: " << RunIDstr << std::endl;
   vector<string> AMCs = manyDBQuery(Database,AMCQuery);
-  if (DEBUG) cout << "Number of AMCs: " << AMCs.size() << endl;
+  std::cout << "Number of AMCs: " << AMCs.size() << endl;
   for ( int iamc = 0; iamc < AMCs.size(); iamc++ )
   {
     string currentAMCid = stringFromChar(AMCs.at(iamc).c_str());
@@ -49,7 +53,7 @@ TList *getConfig(string filename)
     amc->SetName(to_string(a_slot).c_str());
     string GEBQuery = "select geb_id from ldqm_db_amc_gebs where amc_id like '"+currentAMCid+"'";
     vector<string> GEBs = manyDBQuery(Database,GEBQuery);
-    if (DEBUG) cout << "Number of GEBs: " << GEBs.size() << endl;
+    std::cout << "Number of GEBs: " << GEBs.size() << endl;
     for ( int igeb = 0; igeb < GEBs.size(); igeb++ )
     {
       string currentGEBid = stringFromChar(GEBs.at(igeb).c_str());
@@ -61,7 +65,7 @@ TList *getConfig(string filename)
       geb->SetName(to_string(g_slot).c_str());
       string VFATQuery = "select vfat_id from ldqm_db_geb_vfats where geb_id like '"+currentGEBid+"'";
       vector<string> VFATs = manyDBQuery(Database,VFATQuery);
-      if (DEBUG) cout << "Number of VFATs: " << VFATs.size() << endl;
+      std::cout << "Number of VFATs: " << VFATs.size() << endl;
       for ( int ivfat = 0; ivfat < VFATs.size(); ivfat++ )
       {
         string currentVFATid = stringFromChar(VFATs.at(ivfat).c_str());
@@ -83,7 +87,7 @@ TList *getConfig(string filename)
     } /* END GEB LOOP */
     config->Add(amc->Clone());
     amc->Clear();
-    //if (DEBUG) cout << "Add AMC histograms to AMC13 for amc in " << a_slot << endl;
+    //cout << "Add AMC histograms to AMC13 for amc in " << a_slot << endl;
   } /* END AMC LOOP */
 
   return config;
@@ -95,8 +99,8 @@ int main(int argc, char** argv)
   std::cout << "--==DQM Main==--" << endl;
   if (argc<2) 
     {
-      cout << "Please provide input filenames" << endl;
-      cout << "Usage: <path>/rundqm inputFile.root" << endl;
+      std::cout << "Please provide input filenames" << endl;
+      std::cout << "Usage: <path>/rundqm inputFile.root" << endl;
       return 0;
     }
   string ifilename = argv[1];
@@ -156,6 +160,6 @@ int main(int argc, char** argv)
   ch->Process(sel.c_str());
   //TProofLite::Mgr("__lite__")->GetSessionLogs()->Display("*");
 
-  if (DEBUG) std::cout << "DQM Complete." << endl;
+  std::cout << "DQM Complete." << endl;
   return 0;
 }

@@ -1,4 +1,5 @@
 #include "gemTreeReader.h"
+#include <set>
 void gemTreeReader::Begin(TTree * /*tree*/)
 {
   // The Begin() function is called at the start of the query.
@@ -47,9 +48,16 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
   if (DEBUG) std::cout << "Slave Begin: try to get config iterator"<< std::endl;
   TIter nextamc(config_s);
   TObject *amc;
+  std::set<TString> lastNames;
   while ((amc = nextamc())) 
   {
-    std::cout << "Slave Begin: found object " << amc->GetName() << std::endl;
+    if (lastNames.find(amc->GetName()) != lastNames.end()) {
+      if (DEBUG) std::cout << "Slave Begin: found "
+		<< amc->GetName() << " in list of names, skipping" << std::endl;
+      continue;
+    }
+    lastNames.emplace(amc->GetName());
+    if (DEBUG) std::cout << "Slave Begin: found object " << amc->GetName() << std::endl;
     TString a_slot_s = (TString) amc->GetName();
     int a_slot = a_slot_s.Atoi(); // retrieve a_slot from the config somehow
     a_slot_s.Insert(0,"AMC-");
@@ -59,7 +67,7 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
     TObject *geb;
     while ((geb = nextgeb())) 
     {
-      std::cout << "Slave Begin: found object " << geb->GetName() << std::endl;
+      if (DEBUG) std::cout << "Slave Begin: found object " << geb->GetName() << std::endl;
       TString g_slot_s = (TString)geb->GetName();
       int g_slot = g_slot_s.Atoi(); // retrieve g_slot from the config somehow
       g_slot_s.Insert(0,"GTX-");
@@ -72,26 +80,29 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
         TObject *chipID_s = ((TPair*)geb->FindObject(vfat))->Value();
         TString v_slot_s = (TString)vfat->GetName();
         TString s_chipID_s = (TString)chipID_s->GetName();
-        if (DEBUG) cout << "s_chipID_s " << s_chipID_s << endl;
+        if (DEBUG) std::cout << "s_chipID_s " << s_chipID_s << endl;
         //s_chipID_s = TString::BaseConvert(s_chipID_s, 16,10);
         int v_slot = v_slot_s.Atoi(); // retrieve v_slot from the config somehow
         int i_chipID = s_chipID_s.Atoi();
         VFATMap[a_slot][g_slot][v_slot] = i_chipID;
-        if (DEBUG) cout << "Insert chip ID " << i_chipID << " in place a,g,v: " << a_slot << ", " << g_slot << ", " << v_slot << endl;
+        if (DEBUG) std::cout << "Insert chip ID " << i_chipID << " in place a,g,v: "
+			     << a_slot << ", " << g_slot << ", " << v_slot << endl;
         v_slot_s.Insert(0,"VFAT-");
         m_vfatH = new VFAT_histogram("preved", gDirectory->mkdir(v_slot_s.Data()), to_string(v_slot).c_str());
         m_vfatH->bookHistograms();
         m_gebH->addVFATH(m_vfatH,v_slot);
-        std::cout << "Slave Begin: add vfat " << v_slot << std::endl;
+        if (DEBUG) std::cout << "Slave Begin: add vfat " << v_slot << std::endl;
         gDirectory->cd("..");   //moves back to previous directory
       } /* END VFAT LOOP */
       gDirectory->cd("..");     //moves back to previous directory
+      if (DEBUG) std::cout << "Adding histograms for GEB(" << g_slot << ")" << std::endl;
       m_amcH->addGEBH(m_gebH,g_slot);
-      std::cout << "Slave Begin: add geb " << g_slot << std::endl;
+      if (DEBUG) std::cout << "Slave Begin: add geb " << g_slot << std::endl;
     } /* END GEB LOOP */
     gDirectory->cd("..");       //moves back to previous directory
+    if (DEBUG) std::cout << "Adding histograms for AMC(" << a_slot << ")" << std::endl;
     m_amc13H->addAMCH(m_amcH, a_slot);
-    std::cout << "Slave Begin: add amc " << a_slot << std::endl;
+    if (DEBUG) std::cout << "Slave Begin: add amc " << a_slot << std::endl;
   } /* END AMC LOOP */
 
   gDirectory = savedir;
@@ -108,23 +119,28 @@ Bool_t gemTreeReader::Process(Long64_t entry)
   int v_c=0;      //counter through VFATs
 
   v_amc13 = GEMEvents->amc13s();
-  if (DEBUG) cout << "Get a vector of AMC13 "<< endl;
+  if (DEBUG) std::cout << "Get a vector of AMC13 "<< endl;
   /* LOOP THROUGH AMC13s */
   for(auto a13 = v_amc13.begin(); a13!=v_amc13.end(); a13++){
-    if (DEBUG) cout << "Get AMC13 "<< endl;
+    if (DEBUG) std::cout << "Get AMC13 "<< endl;
     m_amc13H->fillHistograms(&*a13);
-    if (DEBUG) cout << "AMC13 histograms filled "<< endl;
+    if (DEBUG) std::cout << "AMC13 histograms filled "<< endl;
     v_amc = a13->amcs();
     /* LOOP THROUGH AMCs */
     for(auto a=v_amc.begin(); a!=v_amc.end(); a++){
-      if (DEBUG) cout << "Get AMC "<< endl;
+      if (DEBUG) std::cout << "Get AMC "<< endl;
       v_geb = a->gebs();
-      if (DEBUG) cout << "Get GEB "<< endl;
+      if (DEBUG) std::cout << "Get GEB "<< endl;
       a_c=a->AMCnum();
+      if (a_c < 0 || a_c > 12) {
+	std::cerr << "Invalid number of AMCs(" << a_c << ") reported, continuing" << std::endl;
+	continue;
+      }
+      if (DEBUG) std::cout << "Trying to access histograms for AMC(" << a_c << ")" << std::endl;
       v_amcH = m_amc13H->amcsH(a_c);
-      if (DEBUG) cout << "Get AMC H "<< endl;
+      if (DEBUG) std::cout << "Get AMC H "<< endl;
       if (v_amcH) v_amcH->fillHistograms(&*a);
-      if (DEBUG) cout << "Fill AMC histograms"<< endl;
+      if (DEBUG) std::cout << "Fill AMC histograms"<< endl;
       m_RunType = a->Rtype();
       if (m_RunType){
         m_deltaV = a->Param2() - a->Param3();
@@ -135,6 +151,12 @@ Bool_t gemTreeReader::Process(Long64_t entry)
       for(auto g=v_geb.begin(); g!=v_geb.end();g++){
         v_vfat = g->vfats();
         int gID = g->InputID();
+	if (gID < 0 || gID > 12) {
+	  std::cerr << "Invalid gID(" << gID << ") reported, continuing" << std::endl;
+	  continue;
+	}
+
+	if (DEBUG) std::cout << "Trying to access histograms for GEB(" << gID << ")" << std::endl;
         v_gebH = v_amcH->gebsH(gID);
         std::map<int,int> slot_map;
         for(auto v=v_vfat.begin(); v!=v_vfat.end();v++){
@@ -142,14 +164,14 @@ Bool_t gemTreeReader::Process(Long64_t entry)
           vID = vID | 0xf000;
           int slot = slotFromMap(a_c, gID, vID);
           slot_map.insert(std::make_pair(v->ChipID(), slot));
-          if (DEBUG) cout << "Inserted in map: chip ID " << v->ChipID() << ", slot "<< slot <<  endl;
+          if (DEBUG) std::cout << "Inserted in map: chip ID " << v->ChipID() << ", slot "<< slot <<  endl;
         }
 	if (DEBUG) std::cout << "v_gebH " << std::hex << std::setw(8) << std::setfill('0') << v_gebH << std::dec << std::endl;
         if (v_gebH) v_gebH->fillHistograms(&*g, slot_map);
         /* LOOP THROUGH VFATs */
         for(auto v=v_vfat.begin(); v!=v_vfat.end();v++){
           int slot = slot_map.find(v->ChipID())->second;
-          if (DEBUG) cout << "Try get slot for chip ID " << v->ChipID() << ", retrieved slot " << slot <<  endl;
+          if (DEBUG) std::cout << "Try get slot for chip ID " << v->ChipID() << ", retrieved slot " << slot <<  endl;
           if (slot>-1) {v_vfatH = v_gebH->vfatsH(slot);} else { continue;}
           if (v_vfatH) {
             v_vfatH->fillHistograms(&*v);

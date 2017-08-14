@@ -1,11 +1,13 @@
-#define PORT 3306
+#define GEM_DB_PORT 3306
+#define GEM_DB_HOST cosmicstandtif.cern.ch // migrate to env var/compile time option
+#define GEM_DB_NAME ldqm_tif_qc8_db // migrate to env var/compile time option
 #ifndef DEBUG
-  #define DEBUG 0
+#define DEBUG 0
 #endif
 #include <mysql/mysql.h>
 //#include <Python.h>
 
-#include <iomanip> 
+#include <iomanip>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -35,7 +37,35 @@ MYSQL* connectDB()
 {
   MYSQL *Database;
   Database = mysql_init(0);
-  if (mysql_real_connect(Database,"gem904daq01.cern.ch","gemdaq","gemdaq","ldqm_db",PORT,0,CLIENT_COMPRESS) == 0) {
+
+  std::string dbname,dbport,dbhost;
+
+  if (std::getenv("GEM_DB_NAME")) {
+    dbname = std::string(std::getenv("GEM_DB_NAME"));
+  } else {
+    std::cerr << "Unable to get GEM_DB_NAME from list of environment variables, please ensure that it points to the name of the correct DB" << std::endl;
+    exit(1);
+  }
+  if (std::getenv("GEM_DB_PORT")) {
+    dbport = std::string(std::getenv("GEM_DB_PORT"));
+  } else {
+    std::cerr << "Unable to get GEM_DB_PORT from list of environment variables, please ensure that it points to the name of the correct DB" << std::endl;
+    exit(1);
+  }
+  if (std::getenv("GEM_DB_HOST")) {
+    dbhost = std::string(std::getenv("GEM_DB_HOST"));
+  } else {
+    std::cerr << "Unable to get GEM_DB_HOST from list of environment variables, please ensure that it points to the name of the correct DB" << std::endl;
+    exit(1);
+  }
+  int port = strtol(dbport.c_str(),0,10);
+
+  std::cout << "Accessing GEM database "
+	    << dbname << " running on host "
+	    << dbhost << " on port "
+	    << port << std::endl;
+
+  if (mysql_real_connect(Database,dbhost.c_str(),"gemdaq","gemdaq",dbname.c_str(),port,0,CLIENT_COMPRESS) == 0) {
     std::string message("Error connecting to database '");
     message += "' : ";
     message += mysql_error(Database);
@@ -64,11 +94,11 @@ vector<string> manyDBQuery(MYSQL * Database, std::string m_Query)
 
   MYSQL_RES *res = mysql_use_result(Database);
   MYSQL_ROW row;
-  
+
   while ((row=mysql_fetch_row(res)))
     {
       if (row[0]!=0) {
-        string resstr(row[0]); 
+        string resstr(row[0]);
         result.push_back(resstr);
       }
     }
@@ -78,7 +108,7 @@ vector<string> manyDBQuery(MYSQL * Database, std::string m_Query)
   return result;
 }
 
-  
+
 //Queries that should return a single value
 char* simpleDBQuery(MYSQL * Database, std::string m_Query)
 {
@@ -104,12 +134,12 @@ char* simpleDBQuery(MYSQL * Database, std::string m_Query)
   } catch (std::exception& e) {
     std::cout << "simpleDBQuery caught std::exception " << e.what() << std::endl;
   }
-    
+
 }
 
 unsigned int getRunNumber(MYSQL* Database)
 {
-  
+
   std::string    setup = "teststand";
   std::string   period = "2016T";
   std::string location = "TIF";
@@ -117,7 +147,7 @@ unsigned int getRunNumber(MYSQL* Database)
   lastRunNumberQuery += location;
   lastRunNumberQuery += "' ORDER BY id DESC LIMIT 1;";
   const char * query = lastRunNumberQuery.c_str();
-    
+
   try {
     int rv = mysql_query(Database,query);
     if (rv)
@@ -133,7 +163,7 @@ unsigned int getRunNumber(MYSQL* Database)
     }
     unsigned int retval = strtoul(row[0],0,0);
     mysql_free_result(res);
-      
+
     if (DEBUG) std::cout << "[getRunNumber]: New run number is: " << retval << std::endl;
     return retval;
   } catch (std::exception& e) {
@@ -161,7 +191,7 @@ unsigned int getChipIDFromID(MYSQL * Database, unsigned int db_id)
     }
     unsigned int retval = strtoul(row[0],0,0);
     mysql_free_result(res);
-      
+
     if (DEBUG) std::cout << "[getChipIDFromID]: ChipID is: " << std::hex << retval << std::dec << std::endl;
     return retval;
   } catch (std::exception& e) {
