@@ -29,7 +29,7 @@ class gemTreeReader: public TSelector {
   public :
   TTree          *fChain;   //!pointer to the analyzed TTree or TChain
   TTreeReader     fReader;  //!the tree reader
-  
+
   // Declaration of leaf types
   Event           *GEMEvents;
   // List of branches
@@ -50,33 +50,33 @@ class gemTreeReader: public TSelector {
   virtual TList  *GetOutputList() const { return fOutput; }
   virtual void    SlaveTerminate();
   virtual void    Terminate();
-  
+
   vector<AMC13Event> v_amc13;    ///<Vector of AMC13Event
   vector<AMCdata> v_amc;         ///<Vector of AMCdata
   vector<GEBdata> v_geb;         ///<Vector of GEBdata
   vector<VFATdata> v_vfat;       ///Vector of VFATdata
-  
+
   AMC_histogram * v_amcH;        ///<Vector of AMC_histogram
   GEB_histogram * v_gebH;        ///<Vector of GEB_histogram
   VFAT_histogram * v_vfatH;      ///<Vector of VFAT_histogram
-  
+
   //int VFATMap[12][12][24];
-  
+
   AMC13_histogram * m_amc13H;
   AMC_histogram * m_amcH;
   GEB_histogram * m_gebH;
   VFAT_histogram * m_vfatH;
-  
+
   int m_RunType;
   int m_deltaV;
   int m_Latency;
   long long int m_OrbitNumber;
   long long int m_RelOrbitNumber;
   TDirectory* onlineHistsDir;
-  
+
   TFile *fFile;
   TProofOutputFile *fProofFile;
-  
+
   ClassDef(gemTreeReader,2);
 };
 
@@ -87,7 +87,7 @@ void gemTreeReader::Begin(TTree * /*tree*/)
   // The Begin() function is called at the start of the query.
   // When running with PROOF Begin() is only called on the client.
   // The tree argument is deprecated (on PROOF 0 is passed).
-  
+
   if (DEBUG) std::cout << "MASTER BEGIN"<< std::endl;
   TString option = GetOption();
 }
@@ -97,11 +97,11 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
   // The SlaveBegin() function is called after the Begin() function.
   // When running with PROOF SlaveBegin() is called on each slave server.
   // The tree argument is deprecated (on PROOF 0 is passed).
-  
+
   if (DEBUG) std::cout << "SLAVE BEGIN"<< std::endl;
   TString option = GetOption();
   gSystem->Load("libEvent.so");
-  
+
   // The file for merging
   fProofFile = new TProofOutputFile("SimpleFile.root", "M");
   TNamed *out = (TNamed *) fInput->FindObject("PROOF_OUTPUTFILE");
@@ -110,7 +110,7 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
   fFile = fProofFile->OpenFile("RECREATE");
   if (fFile && fFile->IsZombie()) SafeDelete(fFile);
   savedir->cd();
-  
+
   // Cannot continue
   if (!fFile) {
     TString amsg = TString::Format("ProofSimpleFile::SlaveBegin: could not create '%s':"
@@ -119,12 +119,12 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
     return;
   }
   fFile->cd();
-  
+
   TObjString * diramc13 = new TObjString("AMC13-1");
   m_amc13H = new AMC13_histogram("preved", gDirectory->mkdir(diramc13->String()), "1");
   m_amc13H->bookHistograms();
-  
-  int iAMCSlots[] = {5}; //Change slots here
+
+  int iAMCSlots[] = {2,4,6}; //Change slots here
   std::vector<int> vec_amcSlots(iAMCSlots, iAMCSlots + sizeof(iAMCSlots) / sizeof(int) );
   for (std::vector<int>::iterator iterAMC=vec_amcSlots.begin(); iterAMC != vec_amcSlots.end(); ++iterAMC){
     std::string strAMCName = "AMC-";
@@ -150,7 +150,7 @@ void gemTreeReader::SlaveBegin(TTree * /*tree*/)
     gDirectory->cd("..");       //moves back to previous directory
     m_amc13H->addAMCH(m_amcH,(*iterAMC));
   }
-  
+
   gDirectory = savedir;
   if (DEBUG) std::cout << "SLAVE END"<< std::endl;
 }
@@ -164,7 +164,7 @@ Bool_t gemTreeReader::Process(Long64_t entry)
   int a_c=0;      //counter through AMCs
   int g_c=0;      //counter through GEBs
   int v_c=0;      //counter through VFATs
-  
+
   v_amc13 = GEMEvents->amc13s();
   if (DEBUG) cout << "Get a vector of AMC13 "<< endl;
   /* LOOP THROUGH AMC13s */
@@ -228,7 +228,7 @@ Bool_t gemTreeReader::Process(Long64_t entry)
     } /* END AMC LOOP */
     a13_c++;
   } /* END AMC13 LOOP */
-  
+
   return kTRUE;
 }
 
@@ -265,7 +265,7 @@ void gemTreeReader::Terminate()
   // The Terminate() function is the last function to be called during
   // a query. It always runs on the client, it can be used to present
   // the results graphically or save the results to file.
-  
+
   if ((fProofFile = dynamic_cast<TProofOutputFile*>(fOutput->FindObject("SimpleFile.root")))) {
     TString outputFile(fProofFile->GetOutputFileName());
     TString outputName(fProofFile->GetName());
@@ -289,14 +289,14 @@ void gemTreeReader::Init(TTree *tree)
   // code, but the routine can be extended by the user if needed.
   // Init() will be called many times when running on PROOF
   // (once per file to be processed).
-  
+
   // Set branch addresses and branch pointers
   if (!tree) return;
   fChain = tree;
   fChain->SetMakeClass(0);
-  
+
   GEMEvents = new Event();
-  
+
   fChain->SetBranchAddress("GEMEvents", &GEMEvents, &b_GEMEvents);
 }
 
@@ -307,7 +307,7 @@ Bool_t gemTreeReader::Notify()
   // is started when using PROOF. It is normally not necessary to make changes
   // to the generated code, but the routine can be extended by the
   // user if needed. The return value is currently not used.
-  
+
   return kTRUE;
 }
 
